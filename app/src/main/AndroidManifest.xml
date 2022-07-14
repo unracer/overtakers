@@ -19,26 +19,20 @@
             </intent-filter>
         </activity>
 
-        <activity android:name=".MainSlider"
-            android:label="MainSlider" >
+        <activity android:name=".ViewChats"
+            android:label="ViewChats">
         </activity>
 
-        <activity android:name=".ChatActivity"
-            android:label="ChatActivity">
+        <activity android:name=".ViewChat"
+            android:label="ViewChatPrivate">
         </activity>
 
-        <activity android:name=".NewsActivity"
-            android:label="NewsActivity">
+        <activity android:name=".ViewNews"
+            android:label="ViewNews">
         </activity>
 
-        <activity android:name=".ShopActivity"
-            android:label="ShopActivity">
-        </activity>
-        <activity android:name=".ShopAbout"
-            android:label="ShopAbout">
-        </activity>
-        <activity android:name=".ShopBasket"
-            android:label="ShopBasket">
+        <activity android:name=".ViewServices"
+            android:label="ViewServices">
         </activity>
     </application>
 

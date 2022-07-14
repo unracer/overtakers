@@ -1,367 +1,361 @@
 package com.example.overtakers;
 
+import static android.content.Intent.FLAG_ACTIVITY_NEW_TASK;
+
 import android.app.Activity;
+import android.content.Context;
 import android.content.Intent;
-import android.database.Cursor;
 import android.os.Bundle;
-import android.view.View;
+import android.util.Log;
+import android.widget.Button;
 import android.widget.EditText;
-import android.widget.TextView;
-import android.widget.Toast;
 
-/** class for LOGIN/REGISTER
- * also update local database
- * */
+import org.json.JSONObject;
 
-/**
- * arch app
- *
- * Main* - for services and control
- * - Activity - login, registration, syn dataBase
- * - Slider - contain all app at one activity using slider
- *
- * Shop* - for buying
- * - Activity - goods
- * - About - description, payment
- * - Basket - current orders
- *
- * Chat* - for chating
- * - Activity - general chat
- * */
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.util.Arrays;
 
-/**
- * ideology is saveTraffic
- * */
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLSocketFactory;
 
 public class MainActivity extends Activity {
+    Context context;
 
-//    // obj
-//    Button buy_btn, history_btn, basket_btn, news_btn, community_btn, friends_btn, chat_btn;
-//    ImageButton myAcc_iBtn;
-//    private DBHelper dbHelper;
-//    // db
-//    private int pointOFResponse;
-//    // goods
-//    private String id_shop, title, price, about;
-//    // user
-//    private String idAcc, nickName, pass;
-//    // userData
-//    private String id_param, value, param;
-//    // order
-//    private String /*nickName, */ idGoods, nameGoods, pointMeeting, timeMeeting, progress, dateReg, dateArrival;
-//    // static fields
-//    private static final String TAG = "MAIN_ACTIVITY";
-//    private boolean hostIsEmpty = true, updateFlag = false, dbLoaded = false;
-//    private String host = "https://overtakeshop.000webhostapp.com/";
+    String host = "api.host.com",
 
-    // define
-    String remoteHash, currentHash, host, hostFile;
-    String id, title, description;
-    boolean hostEmpty;
-    DBHelper dbHelper;
-    Cursor cursor;
+    // steep of create app: view -> db -> api -> business-logic
+    // api naming: Существительные — это хорошо, а глаголы — плохо
+
+    // make json with filed to access
+    // post get update delete
+    // should have cookie (cred(sha256))
+    // that v1
+
+    apiUser =     "http://" +host+ "/user",
+    apiUserId =   "http://" +host+ "/user/id",
+    apiShop =     "http://" +host+ "/shop",
+    apiShopId =   "http://" +host+ "/shop/id",
+    apiNews =     "http://" +host+ "/news",
+    apiNewsId =   "http://" +host+ "/news/id",
+    apiChat =     "http://" +host+ "/chat",
+    apiChatId =   "http://" +host+ "/chat/id";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.main_activity);
+        setContentView(R.layout.login);
 
         EditText nickNameEditText = findViewById(R.id.nicknameEditText);
-        EditText passwordEditText = findViewById(R.id.nicknameEditText);
-        TextView registrationBtn = findViewById(R.id.registrationBtn);
+        EditText passwordEditText = findViewById(R.id.passwordEditText);
+        Button registrationBtn = findViewById(R.id.registrationBtn);
+        HttpPacket httpPacket = new HttpPacket();
 
-        //init
-        host = "overtakers.000webhostapp.com";
-        hostFile = "mobile.php";
-//        dbHelper = new DBHelper(MainActivity.this);
+        // long pool request for all db
+        // just init local db by remote db
+        // shouldn't have business-logic
 
-        /**
-         * if local hash - will update dataBases and start slider
-         * else - get remote hash by current
-         *
-         * if find - will update dataBases and start slider
-         * else - registration
-         * */
-
-
-//        try {
-//            if (dbHelper.getRow("USER","localHash").getCount() > 0) {
-//                updateDB();
-//                Intent intent = new Intent(MainActivity.this, MainSlider.class);
-//                MainActivity.this.startActivity(intent);
-//            }
-//        } catch (Exception e) {}
-
-        registrationBtn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-
-                // for demonstration skip logic
-                Intent intent = new Intent(MainActivity.this, MainSlider.class);
-                MainActivity.this.startActivity(intent);
-
-                // get users cred
-//                String nickName = String.valueOf(nickNameEditText.getText());
-//                String password = String.valueOf(passwordEditText.getText());
-//                // generate hash
-//                currentHash = nickName + password;
-//
-//                remoteHash = https("GET", host, hostFile, "hash=" + currentHash).get("hash");
-//                // parse
-//
-//                if (!remoteHash.equals("")) {
-//                    updateDB();
-//                    Intent intent = new Intent(MainActivity.this, MainSlider.class);
-//                    MainActivity.this.startActivity(intent);
-//                } else {
-//                    registration(nickName, password);
-//
-//                    //restart app
-//                    Intent intent = new Intent(MainActivity.this, MainActivity.class);
-//                    intent.addFlags(FLAG_ACTIVITY_NEW_TASK);
-//                    MainActivity.this.startActivity(intent);
-//                    Runtime.getRuntime().exit(0);
-//                }
-            }
+        // load by cred (hash = login + pass by sha256)
+        Thread dbUserSync = new Thread(() -> {
+            try {
+                String lastData = String.valueOf(httpPacket.data);
+                httpPacket.httpLong(apiUser, "POST", new JSONObject().put("cred", new DBHelper(context).dbRowGetById("user", 1, new String[] {"cred"})[0]));
+                while (true) {
+                    if (!lastData.equals(String.valueOf(httpPacket.data))) {
+                        new DBHelper(context).dbRowUpdate(
+                            "user",
+                            Long.parseLong(httpPacket.data.get("id").toString()),
+                            new String[] {"login", "cred", "chats", "avatar"},
+                            new String[] {
+                                    httpPacket.data.get("login").toString(),
+                                    httpPacket.data.get("cred").toString(),
+                                    httpPacket.data.get("chats").toString(),
+                                    httpPacket.data.get("avatar").toString()
+                            });
+                    }
+                }
+            } catch (Exception e) { Log.d("main", String.valueOf(e));}
         });
 
-        // gestures
-        //common_layout.setOnTouchListener(new SwipeTouchListener(R.layout.activity_main));
+        Thread dbShopSync = new Thread(() -> {
+            try {
+                String lastData = String.valueOf(httpPacket.data);
+                httpPacket.httpLong(apiShop, "GET", new JSONObject().put("cred", new DBHelper(context).dbRowGetById("user", 1, new String[] {"cred"})[0]));
+                while (true) {
+                    if (!lastData.equals(String.valueOf(httpPacket.data))) {
+                        new DBHelper(context).dbRowUpdate(
+                                "shop",
+                                Long.parseLong(httpPacket.data.get("id").toString()),
+                                new String[] {"title", "description", "sale", "price"},
+                                new String[] {
+                                        httpPacket.data.get("title").toString(),
+                                        httpPacket.data.get("description").toString(),
+                                        httpPacket.data.get("sale").toString(),
+                                        httpPacket.data.get("price").toString()
+                                });
+                    }
+                }
+            } catch (Exception e) { Log.d("main", String.valueOf(e));}
+        });
 
+        Thread dbNewsSync = new Thread(() -> {
+            try {
+                String lastData = String.valueOf(httpPacket.data);
+                httpPacket.httpLong(apiNews, "GET", new JSONObject().put("cred", new DBHelper(context).dbRowGetById("user", 1, new String[] {"cred"})[0]));
+                while (true) {
+                    if (!lastData.equals(String.valueOf(httpPacket.data))) {
+                        new DBHelper(context).dbRowUpdate(
+                                "news",
+                                Long.parseLong(httpPacket.data.get("id").toString()),
+                                new String[] {"date", "category", "title", "description"},
+                                new String[] {
+                                        httpPacket.data.get("date").toString(),
+                                        httpPacket.data.get("category").toString(),
+                                        httpPacket.data.get("title").toString(),
+                                        httpPacket.data.get("description").toString()
+                                });
+                    }
+                }
+            } catch (Exception e) { Log.d("main", String.valueOf(e));}
+        });
+
+        // just create chat tables and when you need output this chat, should by pattern "chat_<name>"
+        Thread dbChatSync = new Thread(() -> {
+            try {
+                String lastData = String.valueOf(httpPacket.data);
+                httpPacket.httpLong(apiChatId, "GET", new JSONObject().put("cred", new DBHelper(context).dbRowGetById("user", 1, new String[] {"cred"})[0]));
+                while (true) {
+                    if (!lastData.equals(String.valueOf(httpPacket.data))) {
+                        new DBHelper(context).dbRowUpdate(
+                                "chat_" + httpPacket.data.get("name"),
+                                Long.parseLong(httpPacket.data.get("id").toString()),
+                                new String[] {"name", "message"},
+                                new String[] {
+                                        httpPacket.data.get("name").toString(),
+                                        httpPacket.data.get("message").toString()
+                                });
+                    }
+                }
+            } catch (Exception e) { Log.d("main", String.valueOf(e));}
+        });
+
+        /*
+         * if cred exist - open app
+         * else get remoteCred by insertedCred
+         *      if found - load remote to local db
+         *      else registration - send cred to remote db
+         * */
+
+        try {
+            DBHelper dbHelper = new DBHelper(MainActivity.this);
+            // get valid cred
+            if (dbHelper.dbRowGetById("user", 1, new String[]{"login", "cred", "chats", "avatar"}).length > 0) {
+                dbUserSync.start();
+                dbShopSync.start();
+                dbNewsSync.start();
+                dbChatSync.start();
+                MainActivity.this.startActivity(new Intent(MainActivity.this, ViewChats.class));
+            } else {
+
+                // btn event
+                registrationBtn.setOnClickListener(view -> {
+                    try {
+
+                        // get inserted cred
+                        String credentials = String.valueOf(nickNameEditText.getText()) + passwordEditText.getText(); // any pass more 20 symbols
+
+                        // make hash
+                        MessageDigest digest = MessageDigest.getInstance("SHA-256");
+                        byte[] insertedUserCred; // encodedHash
+                        insertedUserCred = digest.digest(credentials.getBytes(StandardCharsets.UTF_8));
+
+                        // get remoteUserCred by insertedUserCred
+                        httpPacket.https(apiUser, "POST", new JSONObject().put("cred", insertedUserCred));
+                        if (httpPacket.status == 200 && insertedUserCred == httpPacket.data.get("cred")) {
+                            // load to local db
+                            dbHelper.dbRowCreate(
+                                    "user",
+                                    new String[]{"login", "cred", "chats", "avatar"},
+                                    new String[]{
+                                            String.valueOf(httpPacket.data.get("login")),
+                                            Arrays.toString(insertedUserCred),
+                                            String.valueOf(httpPacket.data.get("chats")),
+                                            String.valueOf(httpPacket.data.get("avatar"))}
+                            );
+
+                            dbUserSync.start();
+                            dbShopSync.start();
+                            dbNewsSync.start();
+                            dbChatSync.start();
+
+                            MainActivity.this.startActivity(new Intent(MainActivity.this, ViewChats.class));
+                        } else {
+                            // registration on remote db
+                            // send to remote db
+                            httpPacket.https(
+                                    apiUser,
+                                    "POST",
+                                    new JSONObject()
+                                            .put("login", String.valueOf(nickNameEditText.getText()))
+                                            .put("cred", insertedUserCred)
+                                            .put("chats", "chat_general")
+                                            .put("avatar", "x.gif")
+                            );
+
+                            //restart app
+                            MainActivity.this.startActivity(new Intent(MainActivity.this, MainActivity.class).addFlags(FLAG_ACTIVITY_NEW_TASK));
+                            Runtime.getRuntime().exit(0);
+                        }
+                    } catch (Exception e) {
+                        // for preview other part of application
+                        startActivity(new Intent(this, ViewChats.class));
+                    }
+                });
+            }
+        } catch (Exception e) {
+            // for preview other part of application
+            startActivity(new Intent(this, ViewChats.class));
+        }
     }
 
-    public void registration(String nickName, String password) {
-        // hash by name and pass
-
-        // create remote hash
-
-        // create local hash
-    }
-
-    public void updateDB () {
+//    public String[] https(String method, String url, String args){
 //        try {
 //
-//            // check host
-//            cursor = dbHelper.getRow(dbHelper.TABLE_USER, "host"); // const
-//            if (cursor.getCount() > 0) {
-//                if (cursor.getString(2).length() < 10) { // add regular for check http://
-//                    dbHelper.updateRow(dbHelper.TABLE_USER, "host", host);
-//                } else {
-//                    host = cursor.getString(2);
-//                }
-//                hostEmpty = false;
-//            } else {
-//                showMyToast("set HOST and REBOOT");
-//                dbHelper.createRow(dbHelper.TABLE_USER, "host", host);
-//                hostEmpty = true;
-//            }
+//            //request
+//            SSLSocketFactory sslSocketFactory = (SSLSocketFactory) SSLSocketFactory.getDefault();
+//            HttpsURLConnection connection = (HttpsURLConnection) new URL(url+args).openConnection(); // getInputStream for long poll
+//            connection.setSSLSocketFactory(sslSocketFactory);
+//            connection.setRequestMethod(method);
 //
-//            // update db
-//            if (!hostEmpty) {
-//                HashMap<String, String> request = new HashMap<>();
+//            connection.getResponseCode();
 //
-//                // clear tables
-//                if (dbHelper.getFull(dbHelper.TABLE_GOODS).getCount() > 0) { // if table is not empty -> clear
-//                    dbHelper.deleteAll(DBHelper.TABLE_GOODS);
-//                }
+//            //response
+//            BufferedReader br = new BufferedReader(new InputStreamReader((InputStream) connection.getContent()));
+//            String input;
+//            String[] data = new String[]{""};
+//            while ((input = br.readLine()) != null) { data[0] = data[0] + input; }
+//            br.close();
+//            return data[0];
 //
-//                request = https("GET", host, hostFile, "func=goods");
-//                // send to db
-//
-//                request = https("GET", host, hostFile, "func=goods");
-//                // send to db
-//
-//                request = https("GET", host, hostFile, "func=goods");
-//                // send to db
-//            }
-//            cursor.close();
-//            dbHelper.close();
-//
-//        } catch (Exception e) {
-//            Log.d("bafi", String.valueOf(e));
+//        } catch (IOException e) {
+//            e.printStackTrace();
 //        }
-    }
-
-//    public HashMap<String, String> https(String method, String host, String hostFile, String args){
-//
-//        Retrofit retrofit = new Retrofit.Builder()
-//                .baseUrl(host)
-//                .addConverterFactory(GsonConverterFactory.create())
-//                .build();
-//        ApiRequest Server_ApiRequest = retrofit.create(ApiRequest.class);
-//        Call<List<GOODS>> goods = Server_ApiRequest.goodGet("goodsGet");
-//        goods.enqueue(new Callback<List<GOODS>>() {
-//            @Override
-//            public void onResponse(@Nullable Call<List<GOODS>> call, @Nullable Response<List<GOODS>> response) {
-//                if (response.isSuccessful()) {
-//                    for (int i=0; i < response.body().size(); i++) { // count row in response
-//                        id = Long.toString(response.body().get(i).getIdShop());
-//                        title = response.body().get(i).getTitle();
-//                        description = response.body().get(i).getPrice();
-//                        dbHelper.createRow(dbHelper.TABLE_GOODS, title, description); // write to local db
-//                    }
-//                    Log.w("https", "SERVER..OK.." + String.valueOf(response.body().size()));
-//                } else {
-//                    Log.i("https", "SERVER..FAIL.." + response.code());
-//                    try { Log.i("https", "error.." + response.errorBody().string()); }
-//                    catch (IOException e) { e.printStackTrace(); }
-//                }
-//            }
-//            @Override
-//            public void onFailure(@Nullable Call<List<GOODS>> call, @Nullable Throwable t) {
-//                Log.i("https", "failure " + t);
-//            }
-//        });
-//
-//        return new HashMap<>();
-//    }
-
-    /** change this to hashmap */
-//    public void requestGoods () {
-//        Retrofit retrofit = new Retrofit.Builder()
-//                .baseUrl(host)
-//                .addConverterFactory(GsonConverterFactory.create())
-//                .build();
-//        ApiRequest Server_ApiRequest = retrofit.create(ApiRequest.class);
-//        Call<List<GOODS>> goods = Server_ApiRequest.goodGet("goodsGet");
-//        goods.enqueue(new Callback<List<GOODS>>() {
-//            @Override
-//            public void onResponse(@Nullable Call<List<GOODS>> call, @Nullable Response<List<GOODS>> response) {
-//                if (response.isSuccessful()) {
-//                    if (dbHelper.getFullGOODS().getCount() > 0) { // if table is not empty -> clear
-//                        dbHelper.deleteAll(DBHelper.TABLE_GOODS);
-//                    }
-//                    dbHelper.deleteAll(DBHelper.TABLE_GOODS);
-//                    pointOFResponse = 0;
-//                    while (pointOFResponse < response.body().size()) { // count row in response
-//                        id_shop = Long.toString(response.body().get(pointOFResponse).getIdShop());
-//                        title = response.body().get(pointOFResponse).getTitle();
-//                        price = response.body().get(pointOFResponse).getPrice();
-//                        about = response.body().get(pointOFResponse).getAbout();
-//                        pointOFResponse++;
-//                        dbHelper.createRowGOOD(id_shop, title, price, about); // write to local db
-//                    }
-//                    Log.w(TAG, "SERVER..OK..goods.." + String.valueOf(response.body().size()));
-//                } else {
-//                    Log.i(TAG, "SERVER..FAIL..goods.." + response.code());
-//                    try { Log.i(TAG, "er..goods.." + response.errorBody().string()); }
-//                    catch (IOException e) { e.printStackTrace(); }
-//                }
-//            }
-//            @Override
-//            public void onFailure(@Nullable Call<List<GOODS>> call, @Nullable Throwable t) {
-//                Log.i(TAG, "failure " + t);
-//            }
-//        });
+//        return "";
 //    }
 //
-//    private void requestUsersData () {
-//        Retrofit retrofit = new Retrofit.Builder()
-//                .baseUrl(host)
-//                .addConverterFactory(GsonConverterFactory.create())
-//                .build();
-//        ApiRequest Server_ApiRequest = retrofit.create(ApiRequest.class);
-//        Call<List<USERSDATA>> res = Server_ApiRequest.usersDataGet("usersDataGet");
-//        res.enqueue(new Callback<List<USERSDATA>>() {
-//            @Override
-//            public void onResponse(@Nullable Call<List<USERSDATA>> call, @Nullable Response<List<USERSDATA>> response) {
-//                if (response.isSuccessful()) {
-//                    if (dbHelper.getFullUSERSDATA().getCount() > 0) { // if table is not empty -> clear
-//                        dbHelper.deleteAll(DBHelper.TABLE_USER_DATA);
-//                    }
-//                    pointOFResponse = 0;
-//                    while (pointOFResponse < response.body().size()) { // count row in response
-//                        id_param = Integer.toString(response.body().get(pointOFResponse).getId());
-//                        param = response.body().get(pointOFResponse).getParam();
-//                        value = response.body().get(pointOFResponse).getValue();
+//    public String longPollHttps(String method, String url, String args){
+//        try {
+//            //request
+//            SSLSocketFactory sslSocketFactory = (SSLSocketFactory) SSLSocketFactory.getDefault();
+//            HttpsURLConnection con = (HttpsURLConnection) new URL(url+args).openConnection(); // getInputStream for long poll
+//            con.setSSLSocketFactory(sslSocketFactory);
+//            con.setRequestMethod(method);
 //
-//                        if (dbHelper.getRowUserData(Integer.toString(pointOFResponse)).getCount() > 0) { // if exist -> update
-//                            dbHelper.updateRowUsersData(id_param, value, param);
-//                        } else {
-//                            dbHelper.createRowUsersData(Integer.toString(pointOFResponse), value, param); // create
-//                        }
-//                        pointOFResponse++;
-//                    }
-//                    Log.w("SERVER..OK..userData..", String.valueOf(response.body().size()));
-//                } else {
-//                    Log.i(TAG, "SERVER..FAIL..userData.. " + response.code());
-//                    try { Log.i(TAG, "er..userData.." + response.errorBody().string());
-//                    } catch (IOException e) { e.printStackTrace(); }
-//                }
+//            //response
+//            BufferedReader br = new BufferedReader(new InputStreamReader((InputStream) con.getContent()));
+//            while (true) {
+//                if (br.readLine() != null)
+//                    return br.readLine();
 //            }
-//            @Override
-//            public void onFailure(@Nullable Call<List<USERSDATA>> call, @Nullable Throwable t) {
-//                Log.i(TAG, "failure " + t);
-//            }
-//        });
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
+//        return "";
 //    }
-//    private void requestOrders () {
-//        Retrofit retrofit = new Retrofit.Builder()
-//                .baseUrl(host)
-//                .addConverterFactory(GsonConverterFactory.create())
-//                .build();
-//        ApiRequest Server_ApiRequest = retrofit.create(ApiRequest.class);
-//        Call<List<ORDERS>> orders = Server_ApiRequest.orderGet("orderGet", idAcc);
-//        orders.enqueue(new Callback<List<ORDERS>>() {
-//            @Override
-//            public void onResponse(@Nullable Call<List<ORDERS>> call, @Nullable Response<List<ORDERS>> response) {
-//                if (response.isSuccessful()) {
-//                    if (dbHelper.getFull().getCount() > 0) { // if table is not empty -> clear
-//                        dbHelper.deleteAll(DBHelper.TABLE_ORDERS);
-//                    }
-//                    dbHelper.deleteAll(DBHelper.TABLE_ORDERS);
-//                    pointOFResponse = 0;
-//                    while (pointOFResponse < response.body().size()) { // count row in response
-//                        idAcc = Long.toString(response.body().get(pointOFResponse).getIdAcc());
-//                        nickName = response.body().get(pointOFResponse).getNickName();
-//                        idGoods = response.body().get(pointOFResponse).getIdGood();
-//                        nameGoods = response.body().get(pointOFResponse).getNameGood();
-//                        pointMeeting = response.body().get(pointOFResponse).getPointOfMeeting();
-//                        timeMeeting = response.body().get(pointOFResponse).getTimeOfMeeting();
-//                        progress = response.body().get(pointOFResponse).getProgress();
-//                        dateReg = response.body().get(pointOFResponse).getDataReg();
-//                        dateArrival = response.body().get(pointOFResponse).getDateArrival();
-//
-////                        dbHelper.createRowORDER(idAcc, nickName, idGoods, nameGoods, pointMeeting, timeMeeting, progress, dateReg, dateArrival);
-//                        pointOFResponse++;
-//                    }
-//                    Log.w("SERVER..OK..orders..", String.valueOf(response.body().size()));
-//                    dbLoaded = true;
-//                } else {
-//                    Log.i(TAG, "SERVER..FAIL..orders.." + response.code());
-//                    try { Log.i(TAG, "er..order.." + response.errorBody().string());
-//                    } catch (IOException e) { e.printStackTrace(); }
-//                }
-//            }
-//            @Override
-//            public void onFailure(@Nullable Call<List<ORDERS>> call, @Nullable Throwable t) {
-//                Log.i(TAG, "failure " + t);
-//            }
-//        });
-//    }
-
-    private void showMyToast (String msg) {
-        Toast toast = Toast.makeText(getApplicationContext(), msg, Toast.LENGTH_LONG);
-        toast.show();
-    }
 }
 
-/**
- * ?? INFO
- * have 4 connection with server at mainActivity.class, windowChat.class, registration.class, mainAccount.class
- *
- * xx CURRENT ERRORS
- * registration order cant post request
- * https://medium.com/@normanaspx/android-retrofit-post-5c84d62ec24d
- *
- * ++ CURRENT TASKS
- * DONE 1 windowChat add connect with www
- * DONE 2 mainActivity check url and add date of update and connect with www
- * ADD 3 registration add connect with www
- * DONE 4 Buy_choseCategory add dataBase connect
- * DONE 5 Buy_aboutProduct add dataBase connect
- * DONE 6 MainSettings
- * ADD 7 registration_order add payment (10% from price) // seller is not offended, and buyer will endure
- * ADD 8 Main_activity add swipe (left - active app, bottom - roll up, right - app)
- * ADD 9 Main_activity rewrite update local db (remove clearing db)
- * */
+class HttpPacket {
+
+    //response
+    int status;
+    JSONObject data;
+
+    SSLSocketFactory sslSocketFactory = (SSLSocketFactory) SSLSocketFactory.getDefault();
+
+    void https(String url, String method, JSONObject data){
+        try {
+            //execute
+            HttpsURLConnection connection = (HttpsURLConnection) new URL(url).openConnection(); // getInputStream for long poll
+            connection.setSSLSocketFactory(sslSocketFactory);
+            connection.setRequestMethod(method);
+
+            switch (method) {
+                case "GET": {
+                    //response
+                    BufferedReader br = new BufferedReader(new InputStreamReader((InputStream) connection.getContent()));
+                    String input;
+                    String[] response = new String[]{""};
+                    while ((input = br.readLine()) != null) {
+                        response[0] += input;
+                    }
+                    br.close();
+
+                    // clear json
+                    response[0] = "{" + response[0].split("\\{", 2)[1];
+
+                    this.data = new JSONObject(response[0]);
+                }
+                case "POST": {
+                    connection.addRequestProperty("Accept", "application/json");
+
+                    try(OutputStream os = connection.getOutputStream()) {
+                        byte[] input = data.toString().getBytes(StandardCharsets.UTF_8);
+                        os.write(input, 0, input.length);
+                    }
+                }
+            }
+
+            this.status = connection.getResponseCode();
+
+        } catch (Exception e) { Log.d("main", String.valueOf(e));}
+    }
+
+    void httpLong (String url, String method, JSONObject data){
+        try {
+            // set fields
+
+            //execute
+            HttpsURLConnection connection = (HttpsURLConnection) new URL(url).openConnection(); // getInputStream for long poll
+            connection.setSSLSocketFactory(sslSocketFactory);
+            connection.setRequestMethod(method);
+
+            this.status = connection.getResponseCode();
+
+            //response
+            BufferedReader br = new BufferedReader(new InputStreamReader((InputStream) connection.getContent()));
+            String input;
+            String[] response = new String[]{""};
+            while ((input = br.readLine()) != null) {
+                response[0] += input;
+            }
+
+            // clear json
+            response[0] = "{" + response[0].split("\\{", 2)[1];
+
+            this.data = new JSONObject(response[0]);
+
+            httpLong(url, method, null);
+
+        } catch (Exception e) { Log.d("main", String.valueOf(e));}
+    }
+
+}
+
+/*
+  logic
+  1) main activity for sync db
+  2) other activity for load from local db
+
+  todo
+  DONE 1 project view
+  DEV  2 project dataBase
+  DEV  3 sync dataBase
+  DEV  4 set linearlayout by database
+
+  test got one field new String[] {"login}
+  */

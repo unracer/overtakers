@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#000000"
+    tools:context=".MainActivity">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <Space
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_weight="1" />
+
+        <TextView
+            android:id="@+id/textView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="WELCOME TO THE OVERTAKERS, \nANON"
+            android:textAlignment="center"
+            android:textColor="@color/greenBlue"
+            android:textSize="34sp"
+            android:textStyle="bold" />
+
+        <EditText
+            android:id="@+id/nicknameEditText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="0dp"
+            android:layout_marginLeft="0dp"
+            android:layout_weight="1"
+            android:autoText="false"
+            android:background="#6A171918"
+            android:ems="10"
+            android:freezesText="false"
+            android:hint=" nickname"
+            android:inputType="textMultiLine"
+            android:maxLength="20"
+            android:maxLines="1"
+            android:textAlignment="center"
+            android:textColor="@color/white"
+            android:textColorHint="#3C403F"
+            android:textSize="24sp"
+            tools:layout_editor_absoluteX="86dp"
+            tools:layout_editor_absoluteY="358dp" />
+
+        <EditText
+            android:id="@+id/passwordEditText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginLeft="-2dp"
+            android:layout_marginTop="17dp"
+            android:layout_weight="1"
+            android:background="#79171918"
+            android:ems="10"
+            android:hint=" password"
+            android:inputType="textMultiLine"
+            android:maxLength="20"
+            android:maxLines="1"
+            android:textAlignment="center"
+            android:textColor="@color/white"
+            android:textColorHint="#3C4342"
+            android:textSize="24sp"
+            tools:layout_editor_absoluteX="88dp"
+            tools:layout_editor_absoluteY="426dp" />
+
+        <Button
+            android:id="@+id/registrationBtn"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:layout_weight="1"
+            android:background="#0000FFA5"
+            android:backgroundTint="#00FFA5"
+            android:text="LOGIN"
+            android:textColor="@color/greenBlue"
+            android:textSize="24sp"
+            android:textStyle="bold|italic"
+            tools:layout_editor_absoluteX="289dp"
+            tools:layout_editor_absoluteY="388dp" />
+
+        <Space
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_weight="1" />
+
+    </LinearLayout>
+
+</RelativeLayout>
